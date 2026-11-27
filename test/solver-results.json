@@ -3,6 +3,45 @@
  "levels": [
   {
    "index": 0,
+   "id": "littlehouse",
+   "budget": 4,
+   "candidates": 12,
+   "pieces": 2,
+   "arrangementsTried": 41,
+   "capped": false,
+   "cap": 2000000,
+   "allArrangementsUpToPieces": 2,
+   "wins": 4,
+   "failing": {
+    "woke": 0,
+    "stuck": 37,
+    "timeout": 0
+   },
+   "minimumPiecesToWin": 1,
+   "distinctRoutes": [
+    {
+     "route": "tip:cat door:none carry:dog",
+     "count": 4,
+     "minPieces": 1,
+     "example": [
+      [
+       "dot",
+       0,
+       1
+      ]
+     ],
+     "noise": 1,
+     "ticks": 11
+    }
+   ],
+   "shortestFailingExamples": {
+    "stuck": []
+   },
+   "deterministic": true,
+   "seconds": 0.1
+  },
+  {
+   "index": 1,
    "id": "cottage",
    "budget": 6,
    "candidates": 28,
@@ -147,7 +186,7 @@
    "seconds": 0.6
   },
   {
-   "index": 1,
+   "index": 2,
    "id": "tallhouse",
    "budget": 7,
    "candidates": 61,
@@ -314,10 +353,10 @@
     ]
    },
    "deterministic": true,
-   "seconds": 28.6
+   "seconds": 36.2
   },
   {
-   "index": 2,
+   "index": 3,
    "id": "bighouse",
    "budget": 4,
    "candidates": 92,
@@ -566,7 +605,7 @@
     ]
    },
    "deterministic": true,
-   "seconds": 59.9
+   "seconds": 69.5
   }
  ]
 }

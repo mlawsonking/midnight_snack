@@ -8,7 +8,7 @@ canvas{display:block;width:100vw;height:56.25vw;max-height:100vh;max-width:177.7
 </style>
 </head><body><canvas id="c" width="1920" height="1080"></canvas>
 <script type="module">
-import { createState, legalPlacements, place, undo, lastPlacer, startRun, step, resetRun, hint, levelList } from './src/engine.js';
+import { createState, legalPlacements, place, undo, lastPlacer, startRun, step, resetRun, hint, levelList, explain, tourStops, reaction } from './src/engine.js';
 import { render, trayFor, cameraOf } from './src/render.js';
 import { CONFIG } from './src/config.js';
 import { unlock, sfx, eventSound, setMuted, isMuted, ambience } from './src/audio.js';
@@ -22,10 +22,35 @@ let prev = null, screen = 'title', beat = null, screenT = 0, tickAcc = 0, histor
 let buttonDown = false, holdStart = 0, speed = 1, lastSnore = 0, afterPlayers = 'picker';
 const fails = HOUSES.map(() => 0);
 let solved = HOUSES.map(() => false);
-try { const saved = JSON.parse(localStorage.getItem(CONFIG.storageKey) || '[]'); if (Array.isArray(saved)) solved = HOUSES.map((h, i) => !!saved[i]); } catch (e) { /* storage blocked: session only */ }
+const OLD_ORDER = ['cottage', 'tallhouse', 'bighouse']; // Milestone 2 saved a 3-entry array in this order
+try {
+  const saved = JSON.parse(localStorage.getItem(CONFIG.storageKey) || 'null');
+  const byId = {};
+  if (Array.isArray(saved)) saved.forEach((v, i) => { if (v && OLD_ORDER[i]) byId[OLD_ORDER[i]] = true; });
+  else if (saved && saved.solved && typeof saved.solved === 'object') Object.assign(byId, saved.solved);
+  solved = HOUSES.map((h) => byId[h.id] === true);
+} catch (e) { /* storage blocked or unreadable: session only */ }
+let seen = { intro: {}, habits: {} };
+try { const sv = JSON.parse(localStorage.getItem(CONFIG.seenKey) || 'null'); if (sv && sv.intro && sv.habits) seen = sv; } catch (e) { /* session only */ }
+let tour = [], tourIdx = 0, tourT = 0, lastExplain = null, ghost = null, ghostT = 0;
 const ui = { mode: 'tray', tray: 0, trayList: trayFor(state), cells: [], cellIdx: 0, sel: null, hold: 0, holdKind: '', muted: false, full: false };
 
-function saveSolved() { try { localStorage.setItem(CONFIG.storageKey, JSON.stringify(solved)); } catch (e) { /* session only */ } }
+function saveSolved() { const o = { v: 2, solved: {} }; HOUSES.forEach((h, i) => { if (solved[i]) o.solved[h.id] = true; }); try { localStorage.setItem(CONFIG.storageKey, JSON.stringify(o)); } catch (e) { /* session only */ } }
+function saveSeen() { try { localStorage.setItem(CONFIG.seenKey, JSON.stringify(seen)); } catch (e) { /* session only */ } }
+// The intro and the "meet the house" tour. First visit: the goal, then only habits not toured
+// before. The help slot replays everything.
+function startTeach(all) {
+  const stops = tourStops(state);
+  tour = all ? stops : stops.filter((st) => !seen.habits[st.bubble]);
+  tourIdx = 0; snap = true; setScreen('intro');
+}
+function nextStop(now) { tourIdx++; tourT = now; if (tourIdx < tour.length) play('pop'); }
+function endTeach() {
+  seen.intro[HOUSES[house].id] = true;
+  const shown = screen === 'tour' ? tour.slice(0, tourIdx + 1) : []; // a skipped habit is offered again next house
+  for (const st of shown) seen.habits[st.bubble] = true; saveSeen();
+  tour = []; snap = true; setScreen('build');
+}
 function setScreen(sc) { screen = sc; screenT = performance.now(); document.title = 'Midnight Snack (' + sc + ')'; }
 function play(name) { if (sfx[name]) sfx[name](); }
 function firstUnsolved() { const i = solved.indexOf(false); return i < 0 ? 0 : i; }
@@ -34,17 +59,18 @@ function startHouse(i) {
   house = i;
   state = createState(SEED, i, { players });
   prev = null; history = []; beat = null;
-  ui.mode = 'tray'; ui.tray = 0; ui.trayList = trayFor(state); ui.hold = 0; ui.holdKind = '';
-  snap = true; setScreen('build');
+  ui.mode = 'tray'; ui.tray = 0; ui.trayList = trayFor(state); ui.hold = 0; ui.holdKind = ''; lastExplain = null; ghost = null;
+  snap = true;
+  if (!seen.intro[HOUSES[i].id]) startTeach(false); else setScreen('build');
 }
 function toPicker() { pickerSel = 1 + firstUnsolved(); snap = true; setScreen('picker'); }
 
 function move(d) {
   if (screen === 'players') { playersSel = ((playersSel - 1 + d + 4) % 4) + 1; play('tick'); return; }
-  if (screen === 'picker') { pickerSel = (pickerSel + d + 4) % 4; play('tick'); return; }
+  if (screen === 'picker') { pickerSel = (pickerSel + d + HOUSES.length + 1) % (HOUSES.length + 1); play('tick'); return; }
   if (screen !== 'build') return;
   if (ui.mode === 'tray') ui.tray = (ui.tray + d + ui.trayList.length) % ui.trayList.length;
-  else ui.cellIdx = (ui.cellIdx + d + ui.cells.length) % ui.cells.length;
+  else { ui.cellIdx = (ui.cellIdx + d + ui.cells.length) % ui.cells.length; updateGhost(); }
   holdStart = 0; ui.hold = 0;
   play('tap');
 }
@@ -67,17 +93,19 @@ function press() {
     startHouse(pickerSel - 1); return;
   }
   if (screen === 'win') { if (performance.now() - screenT > 1200) { play('pop'); toPicker(); } return; }
+  if (screen === 'intro' || screen === 'tour') { play('tap'); endTeach(); return; } // the button skips
   if (screen !== 'build') return;
   if (ui.mode === 'cell') {
     const c = ui.cells[ui.cellIdx];
     if (c) { state = place(state, c); play('pop'); } else play('tap');
-    ui.mode = 'tray';
+    ui.mode = 'tray'; ghost = null;
     return;
   }
   const k = ui.trayList[ui.tray];
   if (k === 'undo') { const p = lastPlacer(state); if (p >= 0) { state = undo(state, p); play('rewind'); } return; }
   if (k === 'sound') { ui.muted = !isMuted(); setMuted(ui.muted); return; }
   if (k === 'full') { toggleFull(); return; }
+  if (k === 'help') { play('pop'); startTeach(true); return; }
   if (k === 'go' || k === 'home') { holdStart = performance.now(); ui.holdKind = k; return; }
   const cells = legalPlacements(state).filter((p) => p.type === k);
   if (!cells.length) { play('thud'); return; }
@@ -85,7 +113,14 @@ function press() {
   const h = currentHint();
   const hi = h && h.type === k ? ui.cells.findIndex((c) => c && c.x === h.x && c.y === h.y) : -1;
   ui.cellIdx = 1;
-  if (hi > 0 && fails[house] >= CONFIG.hintAfterFails + 1) ui.cellIdx = hi; // after a third miss the ghost starts on the hint
+  if (hi > 0 && fails[house] >= CONFIG.hintAfterFails + 1) ui.cellIdx = hi; // after another miss the ghost starts on the hint
+  updateGhost();
+}
+// The creature that would react to the ghost where it is shows its habit bubble.
+function updateGhost() {
+  const r = ui.mode === 'cell' ? reaction(state, ui.cells[ui.cellIdx]) : null;
+  if (!r || !ghost || r.bubble !== ghost.bubble || r.x !== ghost.x || r.y !== ghost.y) ghostT = performance.now();
+  ghost = r;
 }
 
 function input(name, down = true) {
@@ -141,7 +176,7 @@ function frame(now) {
       ui.hold = Math.min(1, (now - holdStart) / CONFIG.holdMs);
       if (ui.hold >= 1) {
         const k = ui.holdKind; holdStart = 0; ui.hold = 0; ui.holdKind = '';
-        if (k === 'go') { state = startRun(state); prev = null; history = [state]; tickAcc = 0; play('pop'); setScreen('run'); }
+        if (k === 'go') { state = startRun(state); prev = null; history = [state]; tickAcc = 0; lastExplain = null; play('pop'); setScreen('run'); }
         else { play('rewind'); toPicker(); }
       }
     }
@@ -153,18 +188,25 @@ function frame(now) {
     alpha = Math.min(1, tickAcc / ms);
     if (state.phase === 'done' && alpha >= 1) {
       if (state.result === 'win') { solved[house] = true; fails[house] = 0; saveSolved(); play('win'); setScreen('win'); }
-      else { beat = state.result === 'woke' ? 'woke' : 'shrug'; play(beat === 'woke' ? 'gasp' : 'thud'); setScreen('beat'); }
+      else { beat = state.result === 'woke' ? 'woke' : 'shrug'; lastExplain = explain(state); play(beat === 'woke' ? 'gasp' : 'thud'); setScreen('beat'); }
     }
+  } else if (screen === 'intro') {
+    if (now - screenT > CONFIG.introMs / speed) { if (tour.length) { tourIdx = 0; tourT = now; play('pop'); setScreen('tour'); } else endTeach(); }
+  } else if (screen === 'tour') {
+    if (now - tourT > CONFIG.tourStopMs / speed) { nextStop(now); if (tourIdx >= tour.length) endTeach(); }
   } else if (screen === 'beat') {
-    if (now - screenT > CONFIG.beatMs / speed) { rewindFrom = state; play('rewind'); setScreen('rewind'); }
+    if (now - screenT > CONFIG.explainMs / speed) { rewindFrom = state; play('rewind'); setScreen('rewind'); }
   } else if (screen === 'rewind') {
     const k = Math.min(1, (now - screenT) / (CONFIG.rewindMs / speed));
     const i = Math.max(0, Math.round((history.length - 1) * (1 - k)));
     state = history[i]; prev = null;
-    if (k >= 1) { state = resetRun(rewindFrom); fails[house]++; ui.mode = 'tray'; beat = null; setScreen('build'); }
+    if (k >= 1) { state = resetRun(rewindFrom); fails[house]++; ui.mode = 'tray'; beat = null; if (lastExplain) lastExplain.parts = state.parts.length; setScreen('build'); }
   }
   ambience(true, screen === 'run' || screen === 'beat' ? 0.35 : 1);
-  render(ctx, { screen, state, prev, alpha, ui, time: now, beat, w: cv.width, h: cv.height, players, playersSel, pickerSel, solved, hint: currentHint(), since: now - screenT, snap });
+  const ex = lastExplain && (screen === 'beat' || (screen === 'build' && lastExplain.parts === state.parts.length)) ? lastExplain : null;
+  const stop = screen === 'tour' ? tour[tourIdx] : null;
+  render(ctx, { screen, state, prev, alpha, ui, time: now, beat, w: cv.width, h: cv.height, players, playersSel, pickerSel, solved, hint: currentHint(), since: now - screenT, snap,
+    explain: ex, stop, stops: tour, stopIdx: tourIdx, stopSince: now - tourT, ghostBubble: screen === 'build' ? ghost : null, ghostSince: now - ghostT });
   snap = false;
   requestAnimationFrame(frame);
 }
@@ -176,7 +218,11 @@ window.__game = {
   get beat() { return beat; },
   get players() { return players; },
   get playersSel() { return playersSel; },
-  get pickerSel() { return pickerSel; }, // 0 = players card, 1..3 = houses
+  get pickerSel() { return pickerSel; }, // 0 = players card, 1..4 = houses
+  get tour() { return tour.map((st) => st.bubble); }, // habits in the current intro/tour
+  get tourStop() { return screen === 'tour' && tour[tourIdx] ? tour[tourIdx].bubble : null; },
+  get explain() { return lastExplain; }, // why the last run failed (engine explain())
+  get bubble() { return ghost ? ghost.bubble : null; }, // habit bubble shown for the placement ghost
   get house() { return house; },
   get houses() { return HOUSES; },
   get solved() { return solved.slice(); },

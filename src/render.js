@@ -12,7 +12,7 @@ const C = {
   ink: '#1d1a2a', skin: '#f1c9a5', skin2: '#e4b48e', pj: '#9a7fc8', cap: '#5fb8a8', panel: 'rgba(12,18,46,0.84)',
 };
 const ROOM_TINT = { attic: '#3a3862', landing: '#3b3d6c', parents: '#4a3c68', kitchen: '#53436a', hall: '#3f4170', kids: '#4c3f70', nursery: '#544269' };
-const ROOF = { cottage: '#7a3448', tallhouse: '#2f4f7a', bighouse: '#5a3a7a' };
+const ROOF = { littlehouse: '#4f6a3a', cottage: '#7a3448', tallhouse: '#2f4f7a', bighouse: '#5a3a7a' };
 
 const cx = (x) => x * CELL + CELL / 2;
 const fb = (y) => (y + 1) * FH - 10;
@@ -224,12 +224,15 @@ function drawKidsBed(ctx, x, fy, t, happy) {
   rr(ctx, x + 42, fy - 62, 12, 62, 4, C.woodD); rr(ctx, x - 62, fy - 46, 10, 46, 4, C.woodD);
   rr(ctx, x - 58, fy - 34, 106, 26, 7, '#5fb8a8');
   for (let i = 0; i < 4; i++) circle(ctx, x - 44 + i * 26, fy - 20, 4, '#86d4c4');
-  const up = happy ? -10 - Math.abs(Math.sin(t / 180)) * 4 : 0;
+  const awake = happy === 'awake';
+  if (awake) happy = false;
+  const up = happy ? -10 - Math.abs(Math.sin(t / 180)) * 4 : awake ? -12 : 0;
   circle(ctx, x + 20, fy - 42 + up, 11, C.skin); circle(ctx, x - 2, fy - 42 + up * 0.8, 11, C.skin2);
   ell(ctx, x + 20, fy - 52 + up, 11, 5, '#7a4a2a'); ell(ctx, x - 2, fy - 52 + up * 0.8, 11, 5, '#e0a040');
   if (happy) {
     for (const hx of [x + 20, x - 2]) { ctx.strokeStyle = C.ink; ctx.lineWidth = 2.4; for (const s of [-1, 1]) { ctx.beginPath(); ctx.arc(hx + s * 4, fy - 42 + up, 3, 1.1 * Math.PI, 1.9 * Math.PI); ctx.stroke(); } ctx.beginPath(); ctx.arc(hx, fy - 38 + up, 4, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke(); }
-  } else { eyes(ctx, x + 20, fy - 43, 4, false); eyes(ctx, x - 2, fy - 43, 4, false); }
+  } else if (awake) { eyes(ctx, x + 20, fy - 43 + up, 4, true, -1.5); eyes(ctx, x - 2, fy - 43 + up * 0.8, 4, true, -1.5); }
+  else { eyes(ctx, x + 20, fy - 43, 4, false); eyes(ctx, x - 2, fy - 43, 4, false); }
 }
 
 function drawCookie(ctx, x, y, r, rot, bite) {
@@ -297,6 +300,12 @@ export function drawIcon(ctx, type, x, fy, s, t, extra) {
       const kx = extra ? ox - sx * b : ox, ky = extra ? oy - sy * b : oy; // corner points out, or in when full
       ctx.beginPath(); ctx.moveTo(ox - sx * b, oy); ctx.lineTo(kx, ky); ctx.lineTo(ox, oy - sy * b); ctx.stroke();
     }
+  } else if (type === 'help') { // a thought bubble with a little cat face: "show me the habits"
+    ell(ctx, 0, -26, 26, 19, C.cream); circle(ctx, -14, -2, 5, C.cream); circle(ctx, -22, 7, 3, C.cream);
+    ctx.fillStyle = '#a3a9c4'; circle(ctx, 0, -24, 10, '#a3a9c4');
+    ctx.beginPath(); ctx.moveTo(-9, -28); ctx.lineTo(-7, -40); ctx.lineTo(-1, -32); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(9, -28); ctx.lineTo(7, -40); ctx.lineTo(1, -32); ctx.fill();
+    circle(ctx, -4, -25, 2, C.ink); circle(ctx, 4, -25, 2, C.ink); circle(ctx, 16, -30, 4, C.red);
   } else if (type === 'back') {
     ctx.strokeStyle = C.cream; ctx.lineWidth = 7; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(-13, -33); ctx.lineTo(13, -7); ctx.moveTo(13, -33); ctx.lineTo(-13, -7); ctx.stroke();
@@ -460,7 +469,7 @@ function drawFurniture(ctx, s, L, t, screen, view_beat) {
     else if (c.kind === 'parent') { const p = s.creatures.find((q) => q.id === c.id); drawParentBed(ctx, x, f, p && p.mode === 'asleep' && p.x === c.x && p.y === c.y && !(screen === 'beat' && view_beat === 'woke'), t); }
   }
   const won = screen === 'win';
-  drawKidsBed(ctx, cx(L.goal.x), fb(L.goal.y), t, won);
+  drawKidsBed(ctx, cx(L.goal.x), fb(L.goal.y), t, won || (screen === 'intro' ? 'awake' : false));
   if (!won) star(ctx, cx(L.goal.x) - 26, fb(L.goal.y) - 84 + Math.sin(t / 400) * 4, 12, 'rgba(255,211,107,0.95)');
 }
 
@@ -637,6 +646,7 @@ function drawCursor(ctx, s, ui, t) {
 
 const cam = { x: 0, y: 0, z: 1, t: -1, level: '' };
 function viewRect(screen) { return screen === 'build' ? { top: 64, bottom: 446 } : { top: 64, bottom: 534 }; }
+const ZOOM = { win: 1.22, beat: 1.12, tour: 1.3, intro: 1 };
 function fitZoom(L, vr) {
   const bw = L.w * CELL + 90, bh = L.h * FH + 130;
   return Math.min((LW - 30) / bw, (vr.bottom - vr.top) / bh);
@@ -646,7 +656,7 @@ function updateCamera(view, L, focus) {
   const fit = fitZoom(L, vr);
   let z = fit, tx = L.w * CELL / 2, ty = (L.h * FH - 100) / 2;
   if (focus && view.screen !== 'build') {
-    z = fit * (view.screen === 'win' ? 1.22 : view.screen === 'beat' ? 1.12 : 1.18);
+    z = fit * (ZOOM[view.screen] || 1.18);
     tx = lerp(tx, focus.x, 0.8); ty = lerp(ty, focus.y, 0.8);
   }
   const vw = LW / z, vh = (vr.bottom - vr.top) / z;
@@ -675,7 +685,10 @@ function doorwayOf(s, L) {
   }
   return { x: best, y: p.y, moved: false };
 }
-function focusOf(s, prev, alpha, screen, beat, L) {
+function focusOf(s, prev, alpha, screen, beat, L, view) {
+  if (screen === 'intro') return null;
+  if (screen === 'tour' && view.stop) return { x: cx(view.stop.x) + (view.stop.who.indexOf('Door') > 0 ? CELL / 2 : 0), y: fb(view.stop.y) - 110 };
+  if (screen === 'beat' && view.explain && beat !== 'woke') { const e = view.explain; return { x: (cx(e.x) + cx(e.spot.x)) / 2, y: (fb(e.y) + fb(e.spot.y)) / 2 - 100 }; }
   if (screen === 'win') return { x: cx(L.goal.x), y: fb(L.goal.y) - 60 };
   if (screen === 'beat' && beat === 'woke') { const d = doorwayOf(s, L), e = s.failedEvent; if (d) return { x: e ? (cx(d.x) * 2 + cx(e.x)) / 3 : cx(d.x), y: e ? (fb(d.y) * 2 + fb(e.y)) / 3 - 60 : fb(d.y) - 70 }; }
   const pts = [];
@@ -717,7 +730,7 @@ function drawMeter(ctx, s, prev, t) {
 export function trayFor(state, levelId) {
   const L = LEVELS[levelId || state.levelId];
   const parts = ['rampR', 'rampL', 'string', 'ball', 'mouse', 'dot'].filter((k) => L.inventory[k] !== undefined);
-  return [...parts, 'undo', 'go', 'home', 'sound', 'full'];
+  return [...parts, 'undo', 'go', 'help', 'home', 'sound', 'full'];
 }
 
 function drawTray(ctx, s, ui, view, t) {
@@ -810,7 +823,7 @@ function miniHouse(ctx, L, x, y, scale, t) {
 function drawPicker(ctx, view, t) {
   drawHills(ctx);
   const cards = [{ kind: 'players' }, ...LEVEL_LIST.map((L, i) => ({ kind: 'house', L, i }))];
-  const xs = [82, 280, 535, 790], widths = [124, 236, 236, 236];
+  const xs = [70, 232, 434, 636, 838], widths = [110, 186, 186, 186, 186];
   for (let i = 0; i < cards.length; i++) {
     const c = cards[i], sel = view.pickerSel === i;
     const w = widths[i], h = i === 0 ? 170 : 300, x = xs[i], y = 262;
@@ -824,7 +837,7 @@ function drawPicker(ctx, view, t) {
     } else {
       const sc = (w - 40) / (c.L.w * 14);
       miniHouse(ctx, c.L, 0, 46, sc, t);
-      for (let d = 0; d <= c.i; d++) drawCookie(ctx, (d - c.i / 2) * 30, 104, 11, 0); // difficulty
+      for (let d = 0; d <= c.i; d++) drawCookie(ctx, (d - c.i / 2) * 28, 104, 11, 0); // difficulty
       if (view.solved && view.solved[c.i]) { glow(ctx, w / 2 - 26, -h / 2 + 26, 50, 'rgba(255,220,120,0.9)', 0.6); star(ctx, w / 2 - 26, -h / 2 + 26, 22 + Math.sin(t / 300) * 2, '#ffd36b'); }
     }
     ctx.restore();
@@ -855,7 +868,7 @@ export function render(ctx, view) {
   if (screen === 'players') return drawPlayers(ctx, view, t);
   if (screen === 'picker') return drawPicker(ctx, view, t);
   const L = LEVELS[s.levelId];
-  const focus = focusOf(s, prev, alpha, screen, beat, L);
+  const focus = focusOf(s, prev, alpha, screen, beat, L, view);
   const { vr } = updateCamera(view, L, focus);
   ctx.save();
   ctx.translate(LW / 2, (vr.top + vr.bottom) / 2); ctx.scale(cam.z, cam.z); ctx.translate(-cam.x, -cam.y);
@@ -864,11 +877,14 @@ export function render(ctx, view) {
   drawFurniture(ctx, s, L, t, screen, beat);
   drawJar(ctx, s, L, prev, alpha);
   drawParts(ctx, s, L, t, screen === 'build');
-  if (screen === 'build') { drawHint(ctx, view.hint, t); drawMark(ctx, s.lastFailure, t); }
+  const ex = view.explain;
+  if (screen === 'build') { drawHint(ctx, view.hint, t); if (!ex || ex.result === 'woke') drawMark(ctx, s.lastFailure, t); }
   drawCreatures(ctx, s, prev, alpha, t, screen, beat);
   drawItems(ctx, s, L, prev, alpha, t, screen);
   if (screen === 'run' || screen === 'beat') drawNoise(ctx, s, alpha);
-  if (screen === 'beat' && beat !== 'woke') { const c = s.items[0]; ctx.fillStyle = C.cream; ctx.font = 'bold 58px Georgia, serif'; ctx.textAlign = 'center'; ctx.fillText('?', cx(c.x), fb(c.y) - 60 - Math.abs(Math.sin(t / 200)) * 12); }
+  if (screen === 'beat' && beat !== 'woke' && ex) { spotlight(ctx, L, [ex.spot, { x: ex.x, y: ex.y }], 0.6); ring(ctx, ex.spot, t); if (ex.bubble) drawBubble(ctx, ex.bubble, anchorOf(ex, L), t, view.since || 0); }
+  if (screen === 'intro') drawIntro(ctx, s, L, t, view.since || 0);
+  if (screen === 'tour' && view.stop) { spotlight(ctx, L, [view.stop], 0.45); drawBubble(ctx, view.stop.bubble, anchorOf(view.stop, L), t, view.stopSince || 0, 0.85); }
   if (lit) {
     const d = doorwayOf(s, L);
     if (d) {
@@ -878,10 +894,18 @@ export function render(ctx, view) {
       circle(ctx, x + 44, f - 156, 22, C.red); ctx.fillStyle = '#fff'; ctx.font = 'bold 34px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('!', x + 44, f - 144);
     }
   }
-  if (screen === 'build') drawCursor(ctx, s, ui, t);
+  if (screen === 'beat' && beat === 'woke' && ex && ex.bubble) { ring(ctx, ex.spot, t); drawBubble(ctx, ex.bubble, anchorOf(ex, L), t, view.since || 0, 0.85); }
+  if (screen === 'build') {
+    drawCursor(ctx, s, ui, t);
+    if (view.ghostBubble) drawBubble(ctx, view.ghostBubble.bubble, anchorOf(view.ghostBubble, L), t, view.ghostSince || 0, 0.9);
+    else if (ex && ex.result !== 'win') { if (ex.result !== 'woke') ring(ctx, ex.spot, t); if (ex.bubble) drawBubble(ctx, ex.bubble, anchorOf(ex, L), t, t, 0.85); }
+  }
   ctx.restore();
+  if ((screen === 'tour' && view.stop && view.stop.bubble === 'meter') || (screen === 'beat' && beat === 'woke')) { const w = s.noise.budget * 34 + 70; ctx.strokeStyle = C.lamp; ctx.lineWidth = 4; ctx.setLineDash([10, 6]); ctx.lineDashOffset = -t / 40; ctx.beginPath(); ctx.roundRect(8, 4, w + 12, 62, 30); ctx.stroke(); ctx.setLineDash([]); }
+  if (screen === 'tour' && view.stops) for (let i = 0; i < view.stops.length; i++) circle(ctx, LW / 2 + (i - (view.stops.length - 1) / 2) * 26, 520, i === view.stopIdx ? 8 : 5, i === view.stopIdx ? C.lamp : 'rgba(247,234,208,0.45)');
   drawMeter(ctx, s, screen === 'run' ? prev : null, t);
   if (screen === 'build') drawTray(ctx, s, ui, view, t);
+  else if (screen === 'intro' || screen === 'tour') { const p = 1 + 0.06 * Math.sin(t / 260); rr(ctx, 846, 436, 96, 92, 30, C.panel); ctx.save(); ctx.translate(894, 494); ctx.scale(p, p); drawIcon(ctx, 'go', 0, 20, 1, t, 0); ctx.restore(); }
   else if (screen === 'run') { // whose machine: all the players' tokens
     for (let i = 0; i < s.players; i++) token(ctx, LW - 40 - i * 46, 36, 18, s.players - 1 - i);
   }
@@ -891,4 +915,179 @@ export function render(ctx, view) {
     ctx.fillStyle = C.cream; for (let i = 0; i < 2; i++) { const x = LW - 70 + i * 34; ctx.beginPath(); ctx.moveTo(x, 34); ctx.lineTo(x - 30, 56); ctx.lineTo(x, 78); ctx.fill(); }
   }
   if (screen === 'win') drawWinOverlay(ctx, t, view.since || 0);
+}
+
+// ---------- teaching: intro, habit bubbles, spotlight ----------
+
+function spotlight(ctx, L, cells, a) {
+  ctx.save(); ctx.beginPath(); ctx.rect(-600, -600, L.w * CELL + 1200, L.h * FH + 1200);
+  for (const c of cells) { ctx.moveTo(cx(c.x) + 95, fb(c.y) - 45); ctx.arc(cx(c.x), fb(c.y) - 45, 95, 0, Math.PI * 2, true); }
+  ctx.fillStyle = 'rgba(4,6,22,' + a + ')'; ctx.fill('evenodd'); ctx.restore();
+}
+function ring(ctx, c, t) {
+  ctx.strokeStyle = C.lamp; ctx.lineWidth = 5; ctx.setLineDash([12, 8]); ctx.lineDashOffset = -t / 40;
+  ctx.beginPath(); ctx.arc(cx(c.x), fb(c.y) - 42, 50 + 4 * Math.sin(t / 160), 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+}
+// Where a bubble hangs: above the creature or thing it belongs to (doors: over the doorway).
+function anchorOf(b, L) {
+  const door = b.who && b.who.indexOf('Door') > 0;
+  return { x: cx(b.x) + (door ? CELL / 2 : 0), y: fb(b.y) - (door ? 150 : 80), up: b.y === 0 };
+}
+function mini(ctx, x, f, s, fn) { ctx.save(); ctx.translate(x, f); ctx.scale(s, s); fn(); ctx.restore(); }
+function miniJar(ctx, x, f, tip, dir) {
+  ctx.save(); ctx.translate(x, f); ctx.rotate(dir * 1.2 * tip);
+  rr(ctx, -10, -28, 20, 28, 6, 'rgba(170,205,250,0.85)'); rr(ctx, -8, -33, 16, 6, 2, '#d46a6a');
+  if (tip < 0.5) drawCookie(ctx, 0, -12, 6, 0);
+  ctx.restore();
+}
+function burst(ctx, x, y, n, col, k) {
+  ctx.globalAlpha = k;
+  for (let i = 0; i < n; i++) { ctx.strokeStyle = col; ctx.lineWidth = 4 - i; ctx.beginPath(); ctx.arc(x, y, 8 + i * 9 + (1 - k) * 10, 0, Math.PI * 2); ctx.stroke(); }
+  for (let i = 0; i < 4 + n * 2; i++) { const a = i * Math.PI * 2 / (4 + n * 2); line(ctx, [x + Math.cos(a) * (10 + n * 6), y + Math.sin(a) * (10 + n * 6), x + Math.cos(a) * (16 + n * 9), y + Math.sin(a) * (16 + n * 9)], col, 3); }
+  ctx.globalAlpha = 1;
+}
+function face(ctx, x, y, r, awake, grown) {
+  circle(ctx, x, y, r, grown ? C.skin : '#e9e2f5');
+  if (grown) { ctx.fillStyle = C.cap; ctx.beginPath(); ctx.moveTo(x - r, y - r * 0.4); ctx.lineTo(x + r * 0.9, y - r * 0.5); ctx.lineTo(x + r * 1.3, y - r * 1.6); ctx.fill(); }
+  eyes(ctx, x, y, r * 0.32, awake, 0);
+  if (awake) ell(ctx, x, y + r * 0.5, r * 0.22, r * 0.28, '#7a2a3a');
+}
+const seg = (p, a, b) => clamp((p - a) / (b - a), 0, 1);
+
+// A wordless thought bubble acting out one habit. (ax, ay) is the anchor above the thing it
+// belongs to; the bubble floats up (or, for the top floor, sideways into the roof space).
+export function drawBubble(ctx, kind, a, t, since, sc) {
+  sc = sc || 1;
+  const W = 210, H = 128, pop = ease(Math.min(1, (since || 0) / 260));
+  const bx = a.x, by = a.y - (a.up ? 50 : 104);
+  ctx.save(); ctx.translate(bx, by); ctx.scale(sc * pop, sc * pop);
+  // tail dots towards the anchor
+  circle(ctx, 0, (a.y - by) * 0.75, 7, C.cream); circle(ctx, 0, (a.y - by) * 0.45 + 4, 11, C.cream);
+  ctx.shadowColor = 'rgba(0,0,0,0.35)'; ctx.shadowBlur = 14;
+  for (const [ox, oy, r] of [[-70, -20, 44], [-30, -42, 46], [30, -42, 46], [72, -18, 44], [50, 26, 44], [-50, 26, 44], [0, 30, 46]]) circle(ctx, ox, oy, r, C.cream);
+  ctx.shadowBlur = 0;
+  rr(ctx, -W / 2, -H / 2, W, H, 40, '#fbf1dc');
+  ctx.beginPath(); ctx.roundRect(-W / 2 + 6, -H / 2 + 6, W - 12, H - 12, 34); ctx.clip();
+  rr(ctx, -W / 2, -H / 2, W, H, 0, '#2c3366');
+  rr(ctx, -W / 2, 34, W, 40, 0, '#4a3a5e');
+  const P = 2600;
+  let p = ((since || 0) % P) / P;
+  const f = 34; // floor line inside the bubble
+  if (kind === 'catMouse') { if (Math.floor((since || 0) / P) % 2) kind = 'mouseOnly'; else kind = 'cat'; }
+  if (kind === 'cat') { // the cat runs to the red dot on the jar; the jar tips; the cookie rolls out
+    const tip = ease(seg(p, 0.5, 0.62));
+    mini(ctx, -84, f, 1.3, () => miniJar(ctx, 0, 0, tip, 1));
+    glow(ctx, -46, f - 4, 26, 'rgba(255,60,80,0.9)', 0.5 + 0.3 * Math.sin(t / 120)); ell(ctx, -46, f - 3, 10, 4, C.red);
+    const catX = lerp(84, -4, ease(seg(p, 0.08, 0.5)));
+    mini(ctx, catX, f, 0.85, () => drawCat(ctx, 0, 0, p < 0.08 ? 'asleep' : p < 0.5 ? 'chase' : 'pounce', -1, t));
+    if (p > 0.58) { const k = ease(seg(p, 0.58, 0.95)); drawCookie(ctx, lerp(-56, 66, k), f - 10 - Math.abs(Math.sin(k * 9)) * 8 * (1 - k), 10, k * 8); }
+  } else if (kind === 'mouseOnly') { // the cat chases the toy mouse and catches it
+    const mx = lerp(-20, -66, seg(p, 0, 0.5));
+    const catX = lerp(80, -40, ease(seg(p, 0.08, 0.52)));
+    if (p < 0.52) mini(ctx, mx, f, 1.2, () => drawMouse(ctx, 0, 0, -1, t, false));
+    mini(ctx, catX, f, 0.85, () => drawCat(ctx, 0, 0, p < 0.08 ? 'asleep' : p < 0.52 ? 'chase' : 'play', -1, t, p >= 0.52));
+    if (p > 0.52 && p < 0.8) burst(ctx, -56, f - 44, 1, 'rgb(255,179,200)', 1 - seg(p, 0.52, 0.8));
+  } else if (kind === 'tip') { // a rolling ball tips the jar, the cookie rolls out the other way
+    const hit = 0.45, tip = ease(seg(p, hit, hit + 0.12));
+    mini(ctx, -14, f, 1.3, () => miniJar(ctx, 0, 0, tip, -1));
+    const bxx = p < hit ? lerp(90, 6, seg(p, 0.05, hit)) : lerp(6, 44, ease(seg(p, hit, 0.8)));
+    drawBall(ctx, bxx, f - 13, 13, -bxx / 8);
+    if (p > hit + 0.08) { const k = ease(seg(p, hit + 0.08, 0.92)); drawCookie(ctx, lerp(-30, -86, k), f - 10, 10, -k * 8); }
+    if (p > hit && p < hit + 0.25) burst(ctx, -10, f - 40, 1, 'rgb(255,230,150)', 1 - seg(p, hit, hit + 0.25));
+  } else if (kind === 'dog') { // a cookie lies by the dog's bed; the dog carries it to the kids' bed
+    const bedX = 58;
+    mini(ctx, bedX, f, 0.62, () => drawKidsBed(ctx, 0, 0, t, p > 0.86));
+    rr(ctx, -66, f - 6, 56, 7, 3, '#6a8ad4');
+    let dx = -38, mode = 'asleep', carry = false;
+    if (p > 0.12 && p < 0.3) { mode = 'fetch'; dx = lerp(-38, -56, seg(p, 0.12, 0.3)); }
+    else if (p >= 0.3) { mode = p < 0.82 ? 'carry' : 'done'; carry = true; dx = lerp(-56, bedX - 50, ease(seg(p, 0.3, 0.82))); }
+    const d = p < 0.3 ? -1 : 1;
+    if (!carry) drawCookie(ctx, -86, f - 10, 10, 0);
+    mini(ctx, dx, f, 0.7, () => drawDog(ctx, 0, 0, mode, d, t, carry));
+    if (carry && p < 0.84) drawCookie(ctx, dx + d * 30, f - 24, 10, 0);
+    if (p >= 0.84) { drawCookie(ctx, bedX - 22, f - 32, 10, 0); for (let i = 0; i < 3; i++) star(ctx, bedX - 30 + i * 22, f - 72 - Math.sin(t / 200 + i) * 4, 7, C.lamp); }
+  } else if (kind === 'door') { // left: the dog noses the door: loud creak. right: a string opens it quietly.
+    for (const side of [-1, 1]) {
+      const ox = side * 52, loud = side < 0;
+      const q = seg(p, 0.08, 0.5), open = ease(seg(p, 0.42, 0.55));
+      line(ctx, [ox, -50, ox, f], C.beam, 6);
+      ctx.fillStyle = '#c99260'; ctx.beginPath(); ctx.moveTo(ox, -42); ctx.lineTo(ox + 18 * open, -36); ctx.lineTo(ox + 18 * open, f); ctx.lineTo(ox, f); ctx.closePath();
+      if (open < 0.05) { ctx.beginPath(); ctx.roundRect(ox - 7, -42, 14, f + 42, 3); }
+      ctx.fill();
+      if (loud) {
+        mini(ctx, lerp(ox - 40, ox - 24, ease(q)), f, 0.5, () => drawDog(ctx, 0, 0, 'fetch', 1, t));
+        if (p > 0.44) burst(ctx, ox, -14, 3, 'rgb(255,96,96)', 1 - seg(p, 0.44, 0.95));
+      } else {
+        ctx.strokeStyle = C.cream; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(ox - 30, f - 3); ctx.quadraticCurveTo(ox - 14, f - (open > 0 ? 6 : 2), ox + 18 * open, -20); ctx.stroke();
+        circle(ctx, ox - 30, f - 3, 4, C.red);
+        drawCookie(ctx, lerp(ox - 50, ox - 30, ease(q)), f - 8, 7, q * 6);
+        if (p > 0.44) { ctx.globalAlpha = 0.5 * (1 - seg(p, 0.44, 0.95)); ctx.strokeStyle = C.cream; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(ox, -14, 9, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
+      }
+    }
+    line(ctx, [0, -52, 0, f + 2], 'rgba(247,234,208,0.35)', 2);
+  } else if (kind === 'baby') { // a loud bang near the crib makes the baby cry
+    const cry = p > 0.42;
+    mini(ctx, 40, f + 4, 0.8, () => { drawCrib(ctx, 0, 0); drawBaby(ctx, 0, 0, cry ? 'crying' : 'asleep', t); });
+    if (p > 0.1 && p < 0.6) burst(ctx, -55, -6, 3, 'rgb(255,96,96)', 1 - seg(p, 0.1, 0.6));
+    if (!cry) zzz(ctx, 30, -6, t, 1);
+  } else if (kind === 'meter') { // each noise wakes one sleepy face a little; one too many wakes the grown-up
+    const n = 4;
+    for (let i = 0; i < n; i++) {
+      const on = p > 0.1 + i * 0.17;
+      face(ctx, -80 + i * 34, -6, 13, false);
+      if (on) { circle(ctx, -80 + i * 34, -6, 13, '#ffd6a0'); eyes(ctx, -80 + i * 34, -7, 4, true, 0); }
+      const k = seg(p, 0.02 + i * 0.17, 0.12 + i * 0.17);
+      if (k > 0 && k < 1) burst(ctx, -80 + i * 34, -40, 1, 'rgb(255,170,90)', 1 - k);
+    }
+    const woke = p > 0.8;
+    face(ctx, 70, -6, 20, woke, true);
+    if (woke) { circle(ctx, 92, -36, 12, C.red); ctx.fillStyle = '#fff'; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('!', 92, -29); }
+    else zzz(ctx, 80, -24, t, 2);
+  }
+  ctx.restore();
+}
+
+// The goal, shown once per house: the kids wake and want the cookie; the cookie glows in its
+// jar; a dotted path runs from the jar to the kids' bed.
+function introPath(L) {
+  const y0 = fb(L.jar.y) - 34, pts = [[cx(L.jar.x), y0]];
+  if (L.jar.y !== L.goal.y) {
+    let st = L.stairs[0], bd = 1000;
+    for (const q of L.stairs) { if (q.y !== L.jar.y) continue; const d = Math.abs(q.x - L.jar.x) + Math.abs(q.x - L.goal.x); if (d < bd) { bd = d; st = q; } }
+    pts.push([cx(st.x), y0], [cx(st.x), fb(st.y + 1) - 34]);
+  }
+  pts.push([cx(L.goal.x), fb(L.goal.y) - 34]);
+  return pts;
+}
+function drawIntro(ctx, s, L, t, since) {
+  const kids = { x: L.goal.x, y: L.goal.y }, jar = { x: L.jar.x, y: L.jar.y };
+  const ph = since < 1600 ? 0 : since < 2900 ? 1 : 2;
+  spotlight(ctx, L, ph === 0 ? [kids] : ph === 1 ? [jar] : [kids, jar], 0.55 * (ph === 2 ? 0.7 : 1));
+  if (ph === 0) { // the kids sit up and think of the cookie
+    const k = ease(Math.min(1, since / 500));
+    const x = cx(kids.x), y = fb(kids.y) - 120;
+    ctx.save(); ctx.translate(x + 20, y); ctx.scale(k, k);
+    circle(ctx, -14, 52, 5, C.cream); circle(ctx, -6, 34, 8, C.cream);
+    ell(ctx, 10, 0, 38, 28, C.cream); drawCookie(ctx, 10, 0, 17, Math.sin(t / 300) * 0.3);
+    ctx.restore();
+  }
+  const jx = cx(jar.x) + 10 * L.jar.dir, jy = fb(jar.y) - 84;
+  if (ph >= 1) { // the cookie glows in its jar
+    const pulse = 0.5 + 0.5 * Math.sin(t / 160);
+    glow(ctx, jx, jy, 70 + pulse * 16, 'rgba(255,211,107,0.95)', 0.55 + pulse * 0.3);
+    for (let i = 0; i < 4; i++) { const a = t / 600 + i * Math.PI / 2; star(ctx, jx + Math.cos(a) * 44, jy + Math.sin(a) * 30, 6, 'rgba(255,240,180,0.95)'); }
+    drawCookie(ctx, jx, jy, 12, 0);
+  }
+  if (ph === 2) { // a dotted path grows from the jar to the kids' bed, and a cookie travels it
+    const pts = introPath(L);
+    const lens = []; let total = 0;
+    for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); lens.push(d); total += d; }
+    const k = ease(Math.min(1, (since - 2900) / 1300)), want = total * k;
+    const posAt = (dist) => { let acc = 0; for (let i = 0; i < lens.length; i++) { if (acc + lens[i] >= dist) { const u = (dist - acc) / lens[i]; return [lerp(pts[i][0], pts[i + 1][0], u), lerp(pts[i][1], pts[i + 1][1], u), i]; } acc += lens[i]; } return [pts[pts.length - 1][0], pts[pts.length - 1][1], lens.length - 1]; };
+    for (let d = 0; d <= want; d += 22) { const [x, y] = posAt(d); circle(ctx, x, y, 6, C.lamp); }
+    const [hx, hy, si] = posAt(want);
+    const ang = Math.atan2(pts[si + 1][1] - pts[si][1], pts[si + 1][0] - pts[si][0]);
+    ctx.save(); ctx.translate(hx, hy); ctx.rotate(ang); ctx.fillStyle = C.lamp; ctx.beginPath(); ctx.moveTo(18, 0); ctx.lineTo(-6, -14); ctx.lineTo(-6, 14); ctx.fill(); ctx.restore();
+    if (k >= 1) { const q = ((since - 4200) % 1400) / 1400; const [x, y] = posAt(total * ease(q)); glow(ctx, x, y - 6, 34, 'rgba(255,211,107,0.9)', 0.6); drawCookie(ctx, x, y - 6, 12, q * 10); }
+  }
 }

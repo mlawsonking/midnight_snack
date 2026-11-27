@@ -28,7 +28,12 @@ HEADLESS API (all functions return NEW state objects; inputs are never mutated)
                                       'tip:cat door:string carry:roll stairs mouse'.
   stateHash(state)                  -> stable 8-hex FNV-1a hash of canonical state JSON.
   levelList()                       -> [{index, id, w, h, budget, floors}] in play order.
-  LEVEL_LIST, LEVELS, LEVEL_1, PART_TYPES, mulberry32 are exported too.
+  explain(state)                    -> for a finished run: {result, reason, bubble, x, y, spot, also,
+                                      event} naming the link that never happened (teaching pass).
+  tourStops(state)                  -> [{bubble, who, x, y}] the habits worth showing in this house.
+  reaction(state, {type, x, y})     -> {bubble, who, x, y} for the creature that would react to a
+                                      piece put there, or null.
+  LEVEL_LIST, LEVELS, LEVEL_0, LEVEL_1, PART_TYPES, mulberry32 are exported too.
 
 PART TYPES: 'rampR', 'rampL' (sets roll direction, power 3), 'string' (tripwire tied to the
 adjacent closed door: anything entering its cell opens the door quietly), 'ball' (an item;
@@ -96,6 +101,23 @@ function makeLevel(o) {
 }
 const P = (type, x, y) => ({ type, x, y });
 
+// Teaching house (house 1 in play order): the red dot alone wins. The cat tips the jar, the
+// cookie rolls to rest by the dog, the dog carries it through open doors to the kids' bed.
+export const LEVEL_0 = makeLevel({
+  id: 'littlehouse', w: 8, h: 2,
+  rooms: [
+    { id: 'attic', kind: 'attic', y: 0, x0: 0, x1: 3 }, { id: 'parents', kind: 'parents', y: 0, x0: 4, x1: 7 },
+    { id: 'kitchen', kind: 'kitchen', y: 1, x0: 0, x1: 2 }, { id: 'hall', kind: 'hall', y: 1, x0: 3, x1: 4 },
+    { id: 'kids', kind: 'kids', y: 1, x0: 5, x1: 7 },
+  ],
+  doors: [{ id: 'kitchenDoor', x: 2, y: 1, open: true }, { id: 'kidsDoor', x: 4, y: 1, open: true }, { id: 'parentsDoor', x: 3, y: 0, open: true }],
+  jar: { x: 0, y: 1, dir: 1 }, goal: { x: 6, y: 1 }, buildFloors: [1],
+  creatures: [{ id: 'cat', kind: 'cat', x: 1, y: 1 }, { id: 'dog', kind: 'dog', x: 3, y: 1 }, { id: 'parent', kind: 'parent', x: 6, y: 0 }],
+  inventory: { rampR: 1, dot: 1 },
+  budget: 4,
+  solutions: [[P('dot', 0, 1)]],
+});
+
 // House 1: the cottage. Everything happens on the ground floor.
 export const LEVEL_1 = makeLevel({
   id: 'cottage', w: 10, h: 2,
@@ -158,8 +180,8 @@ export const LEVEL_3 = makeLevel({
   ],
 });
 
-export const LEVEL_LIST = [LEVEL_1, LEVEL_2, LEVEL_3];
-export const LEVELS = { cottage: LEVEL_1, tallhouse: LEVEL_2, bighouse: LEVEL_3 };
+export const LEVEL_LIST = [LEVEL_0, LEVEL_1, LEVEL_2, LEVEL_3];
+export const LEVELS = { littlehouse: LEVEL_0, cottage: LEVEL_1, tallhouse: LEVEL_2, bighouse: LEVEL_3 };
 
 export function levelList() {
   return LEVEL_LIST.map((L, index) => ({ index, id: L.id, w: L.w, h: L.h, budget: L.budget, floors: L.buildFloors.slice() }));
@@ -611,6 +633,91 @@ export function routeOf(s) {
   for (let i = 0; i < L.stairs.length; i++) if (ev.some((e) => e.type === 'tumble' && e.who === 'cookie' && e.x === L.stairs[i].x)) tag += L.stairs.length > 1 ? ' stairs' + (i + 1) : ' stairs';
   if (ev.some((e) => e.type === 'squeak' || (e.who && e.who.indexOf('mouse') === 0))) tag += ' mouse';
   return tag;
+}
+
+// ---------- teaching (pure, derived from level data and a run's events) ----------
+
+const BUBBLE_FOR_NOISE = { creak: 'door', cry: 'baby' };
+
+// Why a finished run did not win: the first link of the chain that never happened.
+// bubble names the habit to show ('cat', 'catMouse', 'tip', 'dog', 'door', 'baby', 'meter', '');
+// (x, y) is the cell the bubble belongs to; spot is the cell to spotlight; also is a second habit.
+export function explain(s) {
+  if (!s || s.phase !== 'done' || !s.result) return null;
+  const L = lvl(s);
+  const ev = s.events;
+  const cookie = s.items[0];
+  const cat = creature(s, 'cat'), dog = creature(s, 'dog'), baby = creature(s, 'baby');
+  const at = (c) => ({ x: c.x, y: c.y });
+  const mk = (reason, bubble, where, spot, also, event) => ({ result: s.result, reason, bubble, x: where.x, y: where.y, spot: spot || { x: where.x, y: where.y }, also: also || null, event: event || null });
+  if (s.result === 'win') return mk('win', '', L.goal);
+  if (s.result === 'woke') {
+    // The avoidable loud link: a door the dog creaked open (a string opens it quietly), else what
+    // made the baby cry, else the noise that tipped the meter.
+    const e = s.overEvent || s.failedEvent;
+    const cry = ev.find((q) => q.type === 'cry');
+    const cryCause = cry && cry.cause ? ev.find((q) => q.id === cry.cause) || null : null;
+    const creak = ev.find((q) => q.type === 'creak');
+    const root = creak || cryCause || cry || e;
+    const bubble = BUBBLE_FOR_NOISE[root.type] || 'meter';
+    const also = cry && baby && bubble !== 'baby' ? { bubble: 'baby', x: baby.x, y: baby.y } : null;
+    const where = bubble === 'baby' && baby ? at(baby) : { x: root.x, y: root.y };
+    const reason = cry && (root === cryCause || root === cry) ? 'noiseWokeBaby' : creak ? 'loudDoor' : 'tooLoud';
+    return mk(reason, bubble, where, { x: root.x, y: root.y }, also, { type: root.type, x: root.x, y: root.y, noise: root.noise, who: root.who });
+  }
+  // stuck or timeout
+  if (!s.jar.tipped) {
+    const lureType = cat && ev.some((e) => e.type === 'catWake') ? 'catMissedJar' : 'catAsleep';
+    const bubble = L.inventory.mouse !== undefined && s.parts.some((p) => p.type === 'mouse') ? 'catMouse' : 'cat';
+    if (!cat) return mk('jarNotTipped', 'tip', L.jar);
+    return mk(lureType, bubble, { x: cat.homeX, y: cat.homeY }, { x: L.jar.x, y: L.jar.y });
+  }
+  if (cookie.state === 'rest' || cookie.state === 'roll') {
+    for (const d of L.doors) { // closed at the start (it may have been opened after the cookie stopped)
+      if (d.open || d.y !== cookie.y || (d.x !== cookie.x && d.x + 1 !== cookie.x)) continue;
+      if (ev.some((e) => e.type === 'thud' && e.who === 'cookie' && e.x === cookie.x && e.y === cookie.y)) return mk('closedDoor', 'door', at(cookie), at(cookie), null, { type: 'door', x: d.x, y: d.y, noise: 0, who: d.id });
+    }
+    const wrong = ev.find((e) => e.type === 'pickUp' && e.what !== 'cookie');
+    if (wrong && dog) return mk('dogFetchedOther', 'dog', { x: dog.homeX, y: dog.homeY }, at(cookie));
+    if (s.result === 'timeout') return mk('goingRound', '', at(cookie));
+    if (dog) return mk('cookieStopped', 'dog', { x: dog.homeX, y: dog.homeY }, at(cookie));
+    return mk('cookieStopped', '', at(cookie));
+  }
+  return mk(s.result === 'timeout' ? 'goingRound' : 'cookieStopped', '', at(cookie));
+}
+
+// The habits worth acting out in this house, in tour order.
+export function tourStops(s) {
+  const L = lvl(s);
+  const out = [];
+  const home = (kind) => L.creatures.find((c) => c.kind === kind);
+  const cat = home('cat'), dog = home('dog'), baby = home('baby'), parent = home('parent');
+  if (cat) out.push({ bubble: L.inventory.mouse !== undefined ? 'catMouse' : 'cat', who: 'cat', x: cat.x, y: cat.y });
+  if (L.inventory.ball !== undefined || L.inventory.mouse !== undefined) out.push({ bubble: 'tip', who: 'jar', x: L.jar.x, y: L.jar.y });
+  if (dog) out.push({ bubble: 'dog', who: 'dog', x: dog.x, y: dog.y });
+  let door = null, bd = 1000;
+  for (const d of L.doors) { if (d.open) continue; const dist = Math.abs(d.x - L.goal.x) + Math.abs(d.y - L.goal.y) * 10; if (dist < bd) { bd = dist; door = d; } }
+  if (door) out.push({ bubble: 'door', who: door.id, x: door.x, y: door.y });
+  if (baby) out.push({ bubble: 'baby', who: 'baby', x: baby.x, y: baby.y });
+  if (parent) out.push({ bubble: 'meter', who: 'parent', x: parent.x, y: parent.y });
+  return out;
+}
+
+// Which creature would react to a piece placed at (x, y) (for the placement ghost).
+export function reaction(s, pl) {
+  if (!pl) return null;
+  const L = lvl(s);
+  const home = (kind) => L.creatures.find((c) => c.kind === kind);
+  const cat = home('cat'), dog = home('dog');
+  const doorBetween = (y, a, b) => { const lo = Math.min(a, b), hi = Math.max(a, b); return L.doors.some((d) => d.y === y && !d.open && d.x >= lo && d.x < hi); };
+  const seen = (c) => c && c.y === pl.y && !doorBetween(pl.y, c.x, pl.x);
+  const nearDog = dog && dog.y === pl.y && Math.abs(dog.x - pl.x) <= L.dogView;
+  if (pl.type === 'dot' && seen(cat)) return { bubble: 'cat', who: 'cat', x: cat.x, y: cat.y };
+  if (pl.type === 'mouse' && seen(cat)) return { bubble: 'catMouse', who: 'cat', x: cat.x, y: cat.y };
+  if ((pl.type === 'ball' || pl.type === 'mouse') && nearDog) return { bubble: 'dog', who: 'dog', x: dog.x, y: dog.y };
+  if (pl.type === 'ball' && pl.y === L.jar.y && rampAt(s, pl.x, pl.y) === sign(L.jar.x - pl.x)) return { bubble: 'tip', who: 'jar', x: L.jar.x, y: L.jar.y };
+  if (pl.type === 'string') { const d = doorForString(L, pl.x, pl.y); if (d) return { bubble: 'door', who: d.id, x: d.x, y: d.y }; }
+  return null;
 }
 
 function canon(v) {

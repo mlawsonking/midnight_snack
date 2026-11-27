@@ -28,3 +28,22 @@ Goal: a short version of the finished game, not more concept. Three houses in a 
 6. Sound: the cues are readable and not annoying, and the night ambience is soothing rather than tiring.
 7. The title, the win celebration and the grown-up in the doorway feel warm and funny, close to a finished game.
 8. House 3's three routes feel genuinely different, and the interference is funny rather than unfair.
+
+## Teaching pass (added after the first playtest)
+
+The owner placed one ramp in the cottage, pressed go, saw a red ring and did not know how to play. Goal: learnable with no reading.
+
+Bots can verify:
+1. `levelList()` returns four houses: the teaching house first, then cottage, tall house, big house. Cottage, tall house and big house outcomes are unchanged (solver: 161, 633 and 1,948 wins at cap 2,000,000).
+2. In the teaching house the red dot by the jar alone wins, and every other single placement fails (stuck). The tray holds two parts. (It has one route by design; the "two routes" rule above applies to the three M2 houses.)
+3. `explain(state)` names the missing link of a failed run: a lone ramp in the cottage gives `catAsleep` with the cat bubble; a cookie stopped at a closed door gives `closedDoor`; a woke run names the loud link (a creaked door, the crying baby). Pure engine code, plain data.
+4. On first entering a house a wordless intro shows the goal and a tour plays habit bubbles; the button skips; the help slot replays them.
+5. The placement ghost shows the habit bubble of a creature that would react (the dot where the cat sees it).
+6. A stuck run shows the explanation (spotlight plus bubble) instead of a bare "?"; the hint glow appears after one failed run.
+7. Old 3-entry saves are migrated to house ids; four stars fit on the picker.
+8. Screenshots intro, bubble, explain-stuck and house1-teach are taken and inspected; the keyboard-only browser check passes with zero console errors.
+
+Only Michael and the kids can judge:
+1. An adult opening the game cold understands the goal and wins the little house without reading anything.
+2. A 4-year-old, with a little help, can say what the cat does with the red dot after watching the bubble.
+3. The failure bubbles feel like a helpful nudge, not a scolding, and they are not too long to sit through.
