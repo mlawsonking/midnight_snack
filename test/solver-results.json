@@ -1,0 +1,572 @@
+{
+ "note": "unordered subsets of legal placements, searched by piece count; inventory enforced by engine",
+ "levels": [
+  {
+   "index": 0,
+   "id": "cottage",
+   "budget": 6,
+   "candidates": 28,
+   "pieces": 6,
+   "arrangementsTried": 7953,
+   "capped": false,
+   "cap": 2000000,
+   "allArrangementsUpToPieces": 6,
+   "wins": 161,
+   "failing": {
+    "woke": 691,
+    "stuck": 6329,
+    "timeout": 772
+   },
+   "minimumPiecesToWin": 2,
+   "distinctRoutes": [
+    {
+     "route": "tip:cat door:string carry:dog",
+     "count": 53,
+     "minPieces": 2,
+     "example": [
+      [
+       "string",
+       5,
+       1
+      ],
+      [
+       "dot",
+       0,
+       1
+      ]
+     ],
+     "noise": 2,
+     "ticks": 12
+    },
+    {
+     "route": "tip:cat door:parent carry:dog",
+     "count": 89,
+     "minPieces": 3,
+     "example": [
+      [
+       "rampR",
+       4,
+       1
+      ],
+      [
+       "ball",
+       4,
+       1
+      ],
+      [
+       "dot",
+       0,
+       1
+      ]
+     ],
+     "noise": 6,
+     "ticks": 12
+    },
+    {
+     "route": "tip:cat door:parent carry:roll",
+     "count": 10,
+     "minPieces": 3,
+     "example": [
+      [
+       "rampR",
+       2,
+       1
+      ],
+      [
+       "rampR",
+       5,
+       1
+      ],
+      [
+       "dot",
+       0,
+       1
+      ]
+     ],
+     "noise": 6,
+     "ticks": 15
+    },
+    {
+     "route": "tip:cat door:string carry:roll",
+     "count": 9,
+     "minPieces": 4,
+     "example": [
+      [
+       "rampR",
+       2,
+       1
+      ],
+      [
+       "rampR",
+       4,
+       1
+      ],
+      [
+       "string",
+       5,
+       1
+      ],
+      [
+       "dot",
+       0,
+       1
+      ]
+     ],
+     "noise": 2,
+     "ticks": 8
+    }
+   ],
+   "shortestFailingExamples": {
+    "stuck": [],
+    "woke": [
+     [
+      "dot",
+      0,
+      1
+     ]
+    ],
+    "timeout": [
+     [
+      "rampR",
+      2,
+      1
+     ],
+     [
+      "rampL",
+      4,
+      1
+     ],
+     [
+      "ball",
+      2,
+      1
+     ]
+    ]
+   },
+   "deterministic": true,
+   "seconds": 0.6
+  },
+  {
+   "index": 1,
+   "id": "tallhouse",
+   "budget": 7,
+   "candidates": 61,
+   "pieces": 6,
+   "arrangementsTried": 795004,
+   "capped": false,
+   "cap": 2000000,
+   "allArrangementsUpToPieces": 6,
+   "wins": 633,
+   "failing": {
+    "woke": 7427,
+    "stuck": 765521,
+    "timeout": 21423
+   },
+   "minimumPiecesToWin": 3,
+   "distinctRoutes": [
+    {
+     "route": "tip:cat door:parent carry:roll stairs",
+     "count": 232,
+     "minPieces": 3,
+     "example": [
+      [
+       "rampR",
+       1,
+       0
+      ],
+      [
+       "rampR",
+       4,
+       1
+      ],
+      [
+       "dot",
+       0,
+       0
+      ]
+     ],
+     "noise": 7,
+     "ticks": 16
+    },
+    {
+     "route": "tip:cat door:string carry:roll stairs",
+     "count": 232,
+     "minPieces": 4,
+     "example": [
+      [
+       "rampR",
+       1,
+       0
+      ],
+      [
+       "rampR",
+       5,
+       1
+      ],
+      [
+       "string",
+       4,
+       1
+      ],
+      [
+       "dot",
+       0,
+       0
+      ]
+     ],
+     "noise": 3,
+     "ticks": 9
+    },
+    {
+     "route": "tip:cat door:string carry:dog stairs",
+     "count": 167,
+     "minPieces": 4,
+     "example": [
+      [
+       "rampR",
+       1,
+       0
+      ],
+      [
+       "rampL",
+       5,
+       1
+      ],
+      [
+       "string",
+       4,
+       1
+      ],
+      [
+       "dot",
+       0,
+       0
+      ]
+     ],
+     "noise": 3,
+     "ticks": 18
+    },
+    {
+     "route": "tip:cat door:parent carry:dog stairs",
+     "count": 2,
+     "minPieces": 5,
+     "example": [
+      [
+       "rampR",
+       1,
+       0
+      ],
+      [
+       "rampR",
+       8,
+       1
+      ],
+      [
+       "rampL",
+       4,
+       1
+      ],
+      [
+       "ball",
+       8,
+       1
+      ],
+      [
+       "dot",
+       0,
+       0
+      ]
+     ],
+     "noise": 7,
+     "ticks": 19
+    }
+   ],
+   "shortestFailingExamples": {
+    "stuck": [],
+    "woke": [
+     [
+      "rampR",
+      1,
+      0
+     ],
+     [
+      "ball",
+      1,
+      0
+     ]
+    ],
+    "timeout": [
+     [
+      "rampR",
+      1,
+      0
+     ],
+     [
+      "rampL",
+      3,
+      0
+     ],
+     [
+      "ball",
+      1,
+      0
+     ]
+    ]
+   },
+   "deterministic": true,
+   "seconds": 28.6
+  },
+  {
+   "index": 2,
+   "id": "bighouse",
+   "budget": 4,
+   "candidates": 92,
+   "pieces": 6,
+   "arrangementsTried": 2000000,
+   "capped": true,
+   "cap": 2000000,
+   "allArrangementsUpToPieces": 4,
+   "wins": 1948,
+   "failing": {
+    "woke": 362306,
+    "stuck": 1601735,
+    "timeout": 34011
+   },
+   "minimumPiecesToWin": 3,
+   "distinctRoutes": [
+    {
+     "route": "tip:cat door:string carry:dog stairs1",
+     "count": 1288,
+     "minPieces": 3,
+     "example": [
+      [
+       "rampL",
+       3,
+       0
+      ],
+      [
+       "string",
+       3,
+       1
+      ],
+      [
+       "dot",
+       0,
+       0
+      ]
+     ],
+     "noise": 4,
+     "ticks": 17
+    },
+    {
+     "route": "tip:cat door:string carry:dog stairs1 mouse",
+     "count": 399,
+     "minPieces": 3,
+     "example": [
+      [
+       "rampL",
+       5,
+       0
+      ],
+      [
+       "string",
+       3,
+       1
+      ],
+      [
+       "mouse",
+       1,
+       0
+      ]
+     ],
+     "noise": 4,
+     "ticks": 17
+    },
+    {
+     "route": "tip:cat door:string carry:roll stairs2",
+     "count": 120,
+     "minPieces": 4,
+     "example": [
+      [
+       "rampR",
+       6,
+       0
+      ],
+      [
+       "rampL",
+       9,
+       1
+      ],
+      [
+       "string",
+       8,
+       1
+      ],
+      [
+       "dot",
+       0,
+       0
+      ]
+     ],
+     "noise": 3,
+     "ticks": 8
+    },
+    {
+     "route": "tip:cat door:string carry:roll stairs2 mouse",
+     "count": 103,
+     "minPieces": 4,
+     "example": [
+      [
+       "rampR",
+       6,
+       0
+      ],
+      [
+       "rampL",
+       9,
+       1
+      ],
+      [
+       "string",
+       8,
+       1
+      ],
+      [
+       "mouse",
+       1,
+       0
+      ]
+     ],
+     "noise": 4,
+     "ticks": 8
+    },
+    {
+     "route": "tip:mouse door:string carry:roll stairs2 mouse",
+     "count": 33,
+     "minPieces": 4,
+     "example": [
+      [
+       "rampR",
+       6,
+       0
+      ],
+      [
+       "rampL",
+       9,
+       1
+      ],
+      [
+       "string",
+       8,
+       1
+      ],
+      [
+       "mouse",
+       6,
+       0
+      ]
+     ],
+     "noise": 4,
+     "ticks": 8
+    },
+    {
+     "route": "tip:ball door:string carry:roll stairs2",
+     "count": 3,
+     "minPieces": 5,
+     "example": [
+      [
+       "rampR",
+       6,
+       0
+      ],
+      [
+       "rampL",
+       9,
+       1
+      ],
+      [
+       "string",
+       8,
+       1
+      ],
+      [
+       "ball",
+       6,
+       0
+      ],
+      [
+       "dot",
+       8,
+       0
+      ]
+     ],
+     "noise": 3,
+     "ticks": 8
+    },
+    {
+     "route": "tip:ball door:string carry:roll stairs2 mouse",
+     "count": 2,
+     "minPieces": 5,
+     "example": [
+      [
+       "rampR",
+       6,
+       0
+      ],
+      [
+       "rampL",
+       9,
+       1
+      ],
+      [
+       "string",
+       8,
+       1
+      ],
+      [
+       "ball",
+       6,
+       0
+      ],
+      [
+       "mouse",
+       10,
+       0
+      ]
+     ],
+     "noise": 4,
+     "ticks": 8
+    }
+   ],
+   "shortestFailingExamples": {
+    "stuck": [],
+    "woke": [
+     [
+      "dot",
+      0,
+      0
+     ]
+    ],
+    "timeout": [
+     [
+      "rampR",
+      3,
+      0
+     ],
+     [
+      "rampL",
+      4,
+      0
+     ],
+     [
+      "ball",
+      3,
+      0
+     ]
+    ]
+   },
+   "deterministic": true,
+   "seconds": 59.9
+  }
+ ]
+}
